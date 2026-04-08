@@ -1,6 +1,33 @@
 ---
 name: x-nsfw-warmup
-description: X (Twitter) adult content account warmup automation skill. Use when user wants to build, debug, or scale a Twitter/X account farm focused on adult/NSFW content - covers fingerprint browser orchestration (AdsPower / BitBrowser / undetectable), content sourcing (gallery-dl / coomer / kemono / OF-Scraper), NSFW classification (NudeNet), and humanized warmup loops (CryptoBusher framework). Pulls together 20+ vetted open-source repos into a single buildable stack.
+description: Use when user wants to build, debug, or scale an X (Twitter) account farm focused on adult / NSFW content — covers fingerprint browser orchestration (AdsPower / BitBrowser / patchright), content sourcing (twscrape / gallery-dl / coomer / kemono / OF-Scraper), NSFW classification with 18 fine-grained labels (NudeNet), and humanized warmup loops (CryptoBusher framework). Pulls together 30+ vetted open-source repos into a single buildable stack.
+homepage: https://github.com/huangji6693-max/x-nsfw-warmup-skill
+license: MIT
+metadata:
+  openclaw:
+    emoji: 🦞
+    category: marketing-and-sales
+    tags: [twitter, x, account-warmup, adult, nsfw, fingerprint-browser, automation, anti-detect]
+    requires:
+      bins: [python3, pip]
+    install:
+      - id: pip-deps
+        kind: pip
+        module: -r requirements.txt
+        label: Install Python deps (pip)
+      - id: playwright-chromium
+        kind: shell
+        command: playwright install chromium
+        label: Install Chromium for Playwright
+  claude-code:
+    type: knowledge-skill
+    auto-load-on:
+      - "推特养号"
+      - "twitter warmup"
+      - "AdsPower"
+      - "NudeNet"
+      - "fingerprint browser"
+      - "成人内容自动化"
 ---
 
 # X (Twitter) NSFW 养号自动化技能包

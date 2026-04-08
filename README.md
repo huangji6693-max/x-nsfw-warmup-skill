@@ -1,9 +1,13 @@
-# x-nsfw-warmup-skill
+# x-nsfw-warmup-skill 🦞
 
-> **Claude Code Skill** —— X (Twitter) 成人内容方向养号自动化全套开源工具集合
+> **Universal AI-assistant skill** —— X (Twitter) 成人内容方向养号自动化全套开源工具集合
+>
+> ✅ Works with **OpenClaw** (drop into `~/.openclaw/skills/`)
+> ✅ Works with **Claude Code** (drop into `~/.claude/skills/`)
+> ✅ Works with **Cursor / Windsurf / LobeChat / any markdown-aware AI tool**
 >
 > 把指纹浏览器编排、内容采集、NSFW 自动识别、拟人化养号循环这四件事，
-> 用 20+ 个被验证的开源 repo 拼成一条可跑的流水线。
+> 用 30+ 个被验证的开源 repo 拼成一条可跑的流水线。
 
 ---
 
@@ -18,23 +22,57 @@
 
 ---
 
-## 快速开始
+## 安装方式（任选一种）
+
+### 🦞 OpenClaw 用户
+
+```bash
+# 方式 A · 直接 clone 到 OpenClaw skills 目录
+mkdir -p ~/.openclaw/skills
+git clone https://github.com/huangji6693-max/x-nsfw-warmup-skill ~/.openclaw/skills/x-nsfw-warmup
+
+# 方式 B · 在 OpenClaw 对话里直接粘 GitHub 链接（最快）
+# 在任何 OpenClaw 接入的聊天渠道（WhatsApp / Telegram / Slack / 微信 / 飞书…）发：
+# "use https://github.com/huangji6693-max/x-nsfw-warmup-skill"
+# 它会自动 clone + 注册 + 装依赖
+
+# 方式 C · 通过 ClawHub 安装（如果已发布到 registry）
+clawhub install huangji6693-max/x-nsfw-warmup
+```
+
+安装后重启 OpenClaw gateway，问它 "帮我搭一套 X 养号" 就会自动唤起这个 skill。
+
+### 🤖 Claude Code 用户
+
+```bash
+mkdir -p ~/.claude/skills
+git clone https://github.com/huangji6693-max/x-nsfw-warmup-skill ~/.claude/skills/x-nsfw-warmup
+```
+
+下次 Claude Code 启动时自动加载。
+
+### 🛠 其他工具（Cursor / Windsurf / LobeChat / 网页 ChatGPT / Claude.ai）
+
+```bash
+# 直接 clone 看 markdown
+git clone https://github.com/huangji6693-max/x-nsfw-warmup-skill
+cd x-nsfw-warmup-skill
+
+# 把 SKILL.md + 任何一个 workflow 文件复制粘贴到对话框作上下文
+cat SKILL.md workflows/04-warmup-loop.md
+```
+
+### 直接跑代码（不依赖任何 AI 客户端）
 
 ```bash
 git clone https://github.com/huangji6693-max/x-nsfw-warmup-skill
 cd x-nsfw-warmup-skill
 
-# 安装依赖
 pip install -r requirements.txt
+playwright install chromium
 
-# 看 skill 主文件
-cat SKILL.md
-
-# 看完整工具目录
-cat tools-catalog.md
-
-# 跑示例
 python examples/02-nudenet-classify.py path/to/image.jpg
+bash examples/04-gallery-dl-batch.sh
 ```
 
 ---
@@ -103,23 +141,42 @@ x-nsfw-warmup-skill/
 
 ---
 
-## 它为什么是 Claude Code Skill
+## 它为什么是一个"通用 AI skill"
 
-Claude Code 的 skill 系统会在用户说出相关意图时自动加载这个 SKILL.md，然后 Claude 就能：
+`SKILL.md` 顶部的 frontmatter 同时声明了 **OpenClaw** 和 **Claude Code** 两套元数据：
+
+```yaml
+---
+name: x-nsfw-warmup
+description: Use when user wants to build, debug, or scale an X (Twitter) account farm focused on adult / NSFW content...
+metadata:
+  openclaw:
+    emoji: 🦞
+    requires:
+      bins: [python3, pip]
+    install:
+      - id: pip-deps
+        kind: pip
+        module: -r requirements.txt
+      - id: playwright-chromium
+        kind: shell
+        command: playwright install chromium
+  claude-code:
+    type: knowledge-skill
+    auto-load-on:
+      - "推特养号"
+      - "twitter warmup"
+      - "AdsPower"
+---
+```
+
+任意一个 AI 客户端加载后就能：
 
 - 知道用哪个 repo 解决哪个具体痛点
 - 直接参照 `examples/` 里跑得通的代码
 - 按 `workflows/` 的顺序帮用户搭起完整流水线
+- 自动 `pip install -r requirements.txt`（OpenClaw 会读 install 块自动跑）
 - 不需要现场 Google，也不会推荐过时 repo
-
-**安装到本地 Claude Code**：
-
-```bash
-mkdir -p ~/.claude/skills
-git clone https://github.com/huangji6693-max/x-nsfw-warmup-skill ~/.claude/skills/x-nsfw-warmup
-```
-
-之后跟 Claude Code 说"帮我搭一套 X 养号"，它会自动加载这个 skill。
 
 ---
 
