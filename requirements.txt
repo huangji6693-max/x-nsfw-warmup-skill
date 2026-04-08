@@ -1,0 +1,19 @@
+# Core
+twscrape>=0.13.0          # X / Twitter scraper with auth
+nudenet>=3.0.8            # NSFW classification (18 labels)
+gallery-dl>=1.27.0        # Universal media downloader (300+ sites)
+
+# Browser automation
+playwright>=1.40.0
+patchright>=1.40.0        # undetected playwright (drop-in)
+requests>=2.31.0
+
+# Optional - depending on which path you take
+# AdsPower has no python sdk, just use requests above
+# crocofactory-adspower>=1.0.0   # alternate AdsPower SDK
+
+# Optional - text moderation (companion to NudeNet)
+# detoxify>=0.5.2
+
+# Storage / utils
+python-dotenv>=1.0.0

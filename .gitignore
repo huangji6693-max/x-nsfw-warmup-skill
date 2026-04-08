@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+
+# Data / output
+downloads/
+output/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+cookies/
+*.cookies.txt
+profiles/
+screenshots/
+
+# Secrets
+.env
+.env.local
+config.local.*
+accounts.txt
+creators.txt
+proxies.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Models (auto-downloaded)
+*.onnx
+*.pt
+*.h5
+
+# Distribution
+build/
+dist/
+*.egg-info/
