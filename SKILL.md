@@ -127,9 +127,56 @@ metadata:
 
 ---
 
-## 五、Agent 使用本技能的方式
+## 五、AI Agent 角色边界（重要）
 
-当用户提到下面任何意图时，Claude 应主动调用本技能：
+> **任何 AI 助手（Claude / GPT / Gemini / OpenClaw / Cursor / etc）读到本 skill 时请先看本节。**
+> 详细的 do / don't 清单见 [`AI-AGENT-PLAYBOOK.md`](./AI-AGENT-PLAYBOOK.md)。
+
+### ✅ AI 应该做（advisor / coach / explainer）
+
+| 场景 | 行动 |
+|---|---|
+| 用户问"这个 skill 干嘛的" | 读 `tools-catalog.md` + 本文件，给概览 |
+| 用户问"怎么搭" | 按 `workflows/01→04` 顺序解释流程 |
+| 用户贴自己代码报错 | 静态审查、定位 bug、给修复 patch |
+| 用户问"风险点在哪" | 列出 ToS / 法律 / 风控 / 内容合规四个维度 |
+| 用户要看流程不连真实服务 | 跑 `examples/05-full-warmup-loop.py --dry-run`（不会调用任何外部 API） |
+| 用户问选型 | 对比 `tools-catalog.md` 中不同方案 |
+| 用户要用 NudeNet 单独识别一张图 | 直接帮跑 `examples/02-nudenet-classify.py`（这一步纯本地，无平台风险） |
+
+### 🚫 AI 不应该做（runtime / operator）
+
+| 场景 | 拒绝理由 |
+|---|---|
+| "现在帮我跑 24h 养号循环" | AI 不是 runtime，**生产 loop 应该用 cron / systemd / docker 由用户自己跑**，不是聊天里启动 |
+| "登录我账号帮我刷推" | AI 不应该接管真人账号操作 |
+| "帮我绕过 X 的 challenge 验证" | 越界，对应平台风控应该走人工或合规流程 |
+| "帮我量产假账号注册" | 越界 |
+| 涉及未成年 / 非自愿 / deepfake / 骚扰的内容 | **任何情况下都拒绝**，本 skill 严禁用于此类场景 |
+
+### 🎯 正确的人机分工
+
+```
+   ┌──────────────────────────┐         ┌─────────────────────────┐
+   │  AI 助手（聊天里）         │  ←→     │  用户的本地机器 / VPS    │
+   ├──────────────────────────┤         ├─────────────────────────┤
+   │ - 解释 skill              │         │ - cron / systemd 跑 loop │
+   │ - 静态审查代码            │         │ - 真实调用 AdsPower API   │
+   │ - dry-run 流程演练         │         │ - 真实发推 / 关注         │
+   │ - 设计风控策略            │         │ - 持久化数据库            │
+   │ - debug 用户贴出的报错    │         │ - 监控 + 告警             │
+   │ - 推荐工具 / 选型对比     │         │ - 日志归档                │
+   └──────────────────────────┘         └─────────────────────────┘
+        AI 的活到此为止                   这边永远是用户自己的事
+```
+
+**如果一个 AI 拒绝帮你"代跑实时养号循环"，这不是它古板，是它对的。** 让它做左边那一列就行。
+
+---
+
+## 六、Agent 触发关键词
+
+当用户提到下面任何意图时，AI 应主动加载本 skill 并按"五"的边界提供帮助：
 
 - "帮我搭一套推特养号"
 - "AdsPower / BitBrowser 怎么用 API 控制"
@@ -140,10 +187,11 @@ metadata:
 - "推特号一上来就限流怎么解"
 
 调用流程：
-1. 先读 [`tools-catalog.md`](./tools-catalog.md) 确认对应工具
-2. 根据用户已有阶段，跳到对应 [`workflows/`](./workflows/) 文件
-3. 复用 [`examples/`](./examples/) 的代码片段（已经验证过 import 路径）
-4. 强调三件事：
+1. 先读 [`AI-AGENT-PLAYBOOK.md`](./AI-AGENT-PLAYBOOK.md) 确认自己的角色边界
+2. 读 [`tools-catalog.md`](./tools-catalog.md) 确认对应工具
+3. 根据用户已有阶段，跳到对应 [`workflows/`](./workflows/) 文件
+4. 复用 [`examples/`](./examples/) 的代码片段（已经验证过 import 路径）
+5. 强调三件事：
    - **代理 + 指纹 + 行为模式必须三齐全**，少一个都封号
    - **拟人化随机度比代码量更重要**
    - **NudeNet 的 18 个标签**要看清楚，不是简单的 sfw/nsfw 二分类

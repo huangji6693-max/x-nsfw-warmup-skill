@@ -11,6 +11,17 @@ Example 05 · Full Warmup Loop (Demo)
 - 风控告警 + 自动 cool down
 - 截图归档
 
+模式
+----
+- **dry-run**（默认 + 推荐 AI 助手用）：
+    `python 05-full-warmup-loop.py --dry-run`
+    完全不连 AdsPower、不连 X、不连数据库、不发任何请求；
+    只在终端打印每一步会做什么，可以让人 / AI 看清流程结构。
+- **live**：
+    `python 05-full-warmup-loop.py --live`
+    真实跑。要求用户已经自己装好 AdsPower、配好 profile、填好账号池数据库。
+    AI 助手不应在聊天里启动 live 模式 —— 应由用户自己 cron / systemd 调度。
+
 依赖：
     pip install requests playwright nudenet
     playwright install chromium
@@ -18,24 +29,42 @@ Example 05 · Full Warmup Loop (Demo)
 参考主框架：https://github.com/CryptoBusher/Adspower-twitter-warmup
 """
 
+import argparse
 import asyncio
 import json
 import random
 import sqlite3
+import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import requests
-from playwright.async_api import async_playwright, Page
+# 重 import 在 dry-run 模式下不强制要求，避免 AI 助手在聊天里 walk-through 时缺包失败
+try:
+    import requests
+except ImportError:
+    requests = None
+
+try:
+    from playwright.async_api import async_playwright, Page
+except ImportError:
+    async_playwright = None
+    Page = None  # type: ignore
 
 
 # ========== 配置 ==========
 ADSPOWER_API = "http://local.adspower.net:50325"
 DB_PATH = "warmup.db"
 LOG_DIR = Path("logs")
-LOG_DIR.mkdir(exist_ok=True)
+
+# dry-run 模式全局开关，main 里根据 argparse 设置
+DRY_RUN = False
+
+
+def dry(msg: str) -> None:
+    """dry-run 模式下的统一前缀日志"""
+    print(f"[DRY] {msg}")
 
 
 # ========== 异常 ==========
@@ -53,18 +82,83 @@ class NotLoggedIn(Exception):
 
 # ========== AdsPower ==========
 def adspower_start(user_id: str) -> dict:
+    if DRY_RUN:
+        dry(f"adspower_start({user_id}) → 不会真实启动浏览器")
+        return {"ws": {"puppeteer": "ws://dry-run/fake-endpoint"}}
     r = requests.get(f"{ADSPOWER_API}/api/v1/browser/start", params={"user_id": user_id, "open_tabs": 0}, timeout=30)
     r.raise_for_status()
     return r.json()["data"]
 
 
 def adspower_stop(user_id: str) -> None:
+    if DRY_RUN:
+        dry(f"adspower_stop({user_id}) → 不会真实关闭")
+        return
     requests.get(f"{ADSPOWER_API}/api/v1/browser/stop", params={"user_id": user_id}, timeout=30)
+
+
+class _DryPage:
+    """dry-run 模式下的假 Page，吞掉所有方法调用"""
+    url = "https://x.com/home"
+
+    async def goto(self, url, **kw):
+        dry(f"page.goto({url})")
+
+    async def content(self):
+        return ""
+
+    async def screenshot(self, path: str, **kw):
+        dry(f"page.screenshot({path})")
+
+    def locator(self, sel):
+        return self
+
+    def first(self):  # noqa
+        return self
+
+    async def is_visible(self):
+        return True
+
+    async def click(self, **kw):
+        dry("page.click()")
+
+    async def all(self):
+        return []
+
+    async def count(self):
+        return 1
+
+    async def bounding_box(self):
+        return {"x": 100, "y": 100, "width": 50, "height": 30}
+
+    @property
+    def mouse(self):
+        return self
+
+    async def wheel(self, *a, **kw):
+        dry(f"page.mouse.wheel{a}")
+
+    @property
+    def keyboard(self):
+        return self
+
+    async def type(self, *a, **kw):
+        pass
+
+    async def press(self, key):
+        pass
 
 
 @asynccontextmanager
 async def adspower_session(user_id: str):
     info = adspower_start(user_id)
+    if DRY_RUN:
+        try:
+            yield _DryPage()
+        finally:
+            adspower_stop(user_id)
+        return
+
     ws_endpoint = info["ws"]["puppeteer"]
     try:
         async with async_playwright() as p:
@@ -258,12 +352,14 @@ async def warmup_one(account: dict, db: sqlite3.Connection):
                 print(f"  [{account['handle']}] action {name} failed: {e}")
             ts = int(time.time())
             shot_dir = LOG_DIR / account["handle"]
-            shot_dir.mkdir(exist_ok=True)
+            if not DRY_RUN:
+                shot_dir.mkdir(parents=True, exist_ok=True)
             try:
                 await page.screenshot(path=str(shot_dir / f"{ts}_{name}.png"))
             except Exception:
                 pass
-            await asyncio.sleep(random.uniform(15, 90))
+            sleep_s = 0 if DRY_RUN else random.uniform(15, 90)
+            await asyncio.sleep(sleep_s)
 
 
 async def main_loop(db_path: str = DB_PATH, max_concurrent: int = 3):
@@ -350,7 +446,73 @@ def init_schema(db_path: str = DB_PATH):
     conn.close()
 
 
+async def dry_run_walkthrough():
+    """干跑：演示一次完整的循环逻辑，不连任何外部服务，不写数据库"""
+    print("=" * 60)
+    print("DRY RUN · X warmup loop walkthrough")
+    print("=" * 60)
+    print("Mode: NO real API calls · NO real DB writes · NO real X actions")
+    print()
+
+    fake_account = {
+        "handle": "demo_user_001",
+        "fingerprint_profile_id": "ads_fake_001",
+        "status": "active",
+    }
+    fake_db = type("FakeDB", (), {
+        "execute": lambda self, *a, **k: type("Cur", (), {"fetchone": lambda s: None, "fetchall": lambda s: []})(),
+        "commit": lambda self: None,
+    })()
+
+    try:
+        await warmup_one(fake_account, fake_db)
+    except Exception as e:
+        dry(f"walkthrough caught: {type(e).__name__}: {e}")
+
+    print()
+    print("=" * 60)
+    print("DRY RUN done. To run for real (NOT recommended via AI chat):")
+    print("  python 05-full-warmup-loop.py --live")
+    print("And only after you have:")
+    print("  1) AdsPower running locally with profiles configured")
+    print("  2) accounts table populated in warmup.db")
+    print("  3) media_items table populated (run example 02 first)")
+    print("  4) creators table populated (run example 01 first)")
+    print("  5) Reviewed and accepted the legal/ToS risks in LICENSE")
+    print("=" * 60)
+
+
+def main():
+    global DRY_RUN
+    parser = argparse.ArgumentParser(
+        description="X warmup loop demo (DRY RUN by default)",
+        epilog="AI assistants: please use --dry-run only. Real execution is the user's responsibility.",
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true", default=True,
+                      help="(default) walk through the loop with NO real API calls / DB writes")
+    mode.add_argument("--live", action="store_true",
+                      help="actually run against AdsPower + X. User responsibility, NOT for AI chat sessions.")
+    args = parser.parse_args()
+
+    if args.live:
+        DRY_RUN = False
+        confirm = input(
+            "\n⚠️  LIVE MODE\n"
+            "This will start AdsPower profiles and perform real X.com actions.\n"
+            "This violates X ToS and may get accounts banned.\n"
+            "Type 'I understand' to continue: "
+        )
+        if confirm.strip() != "I understand":
+            print("Aborted.")
+            sys.exit(1)
+        init_schema()
+        print("[+] schema ready. starting real warmup loop...")
+        asyncio.run(main_loop())
+    else:
+        DRY_RUN = True
+        asyncio.run(dry_run_walkthrough())
+
+
 if __name__ == "__main__":
-    init_schema()
-    print("[+] schema ready. populate accounts / creators / media_items, then run main_loop()")
-    asyncio.run(main_loop())
+    main()
