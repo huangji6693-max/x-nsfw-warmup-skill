@@ -1,0 +1,67 @@
+[Unit]
+Description=X (Twitter) NSFW Warmup Loop
+Documentation=https://github.com/huangji6693-max/x-nsfw-warmup-skill
+After=network-online.target
+Wants=network-online.target
+
+# 需要 AdsPower 作为前置（如果用 AdsPower 方案）
+# After=adspower.service
+# Requires=adspower.service
+
+[Service]
+Type=simple
+
+# 改成你自己的用户 + 路径
+User=warmup
+Group=warmup
+WorkingDirectory=/opt/x-warmup
+
+# 用 venv 里的 python，避免系统污染
+Environment="PATH=/opt/x-warmup/.venv/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONDONTWRITEBYTECODE=1"
+
+# 从 .env 读敏感配置（代理、AdsPower URL、Telegram token 等）
+EnvironmentFile=-/opt/x-warmup/.env
+
+# 主命令 —— 默认 live 模式走 --live，但要求 .env 里先 explicit 打开
+ExecStartPre=/opt/x-warmup/.venv/bin/python /opt/x-warmup/examples/05-full-warmup-loop.py --dry-run
+ExecStart=/opt/x-warmup/.venv/bin/python /opt/x-warmup/scripts/run_live.py
+
+# 崩溃 → 30 秒后自动重启
+Restart=on-failure
+RestartSec=30s
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+# 资源限制 —— 避免 Playwright 吃爆内存
+MemoryMax=4G
+MemoryHigh=3G
+CPUQuota=200%
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/x-warmup/data /opt/x-warmup/logs /opt/x-warmup/screenshots
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+# 日志走 journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=x-warmup
+
+# 优雅停止
+KillSignal=SIGINT
+TimeoutStopSec=30
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,94 @@
+# X NSFW Warmup Skill — docker-compose
+#
+# Quick start:
+#   cp deploy/.env.example .env && nano .env   # 填好敏感配置
+#   docker compose -f deploy/docker-compose.yml up -d
+#   docker compose -f deploy/docker-compose.yml logs -f warmup
+#
+# Stop:
+#   docker compose -f deploy/docker-compose.yml down
+
+services:
+  # ---------------------------------------------------------------------------
+  # 主服务：养号循环
+  # ---------------------------------------------------------------------------
+  warmup:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: x-warmup:latest
+    container_name: x-warmup
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      # 默认启动 live 模式 —— 需要 .env 里先 explicit 打开 WARMUP_MODE=live
+      WARMUP_MODE: ${WARMUP_MODE:-dry-run}
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+      - ../screenshots:/app/screenshots
+      # cookies / 账号池配置挂进来
+      - ../cookies:/app/cookies:ro
+    command: ["python", "scripts/run_live.py"]
+    healthcheck:
+      test: ["CMD", "python", "examples/05-full-warmup-loop.py", "--dry-run"]
+      interval: 5m
+      timeout: 60s
+      retries: 3
+      start_period: 30s
+    # 资源限制 —— 避免 Playwright 吃爆宿主机
+    mem_limit: 4g
+    mem_reservation: 2g
+    cpus: 2.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "10"
+    networks:
+      - warmup-net
+    depends_on:
+      adspower-bridge:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
+  # AdsPower Local API 桥接 —— 如果 AdsPower 装在宿主机上，用这个转发
+  # 如果用 patchright 方案（不要 AdsPower），把这段删掉
+  # ---------------------------------------------------------------------------
+  adspower-bridge:
+    image: alpine/socat:latest
+    container_name: adspower-bridge
+    restart: unless-stopped
+    command:
+      - TCP-LISTEN:50325,fork,reuseaddr
+      - TCP:host.docker.internal:50325
+    networks:
+      - warmup-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ---------------------------------------------------------------------------
+  # Watchtower —— 镜像自动更新（可选）
+  # 不想自动更新就把这段删掉
+  # ---------------------------------------------------------------------------
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: x-warmup-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: "86400"  # 24h 一次
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+    networks:
+      - warmup-net
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+networks:
+  warmup-net:
+    driver: bridge
