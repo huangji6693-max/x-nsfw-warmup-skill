@@ -11,6 +11,37 @@
 
 ---
 
+## ⚡ 最短路径（已有账号 + 指纹浏览器的用户）
+
+如果你**已经有 X 账号**，并且**已经在 AdsPower / BitBrowser 里创建了 profile 并登录过**，从零到 dry-run 只要 3 条命令：
+
+```bash
+# 1. 一键装（自动识别 OpenClaw / Claude Code / 独立安装位置）
+curl -fsSL https://raw.githubusercontent.com/huangji6693-max/x-nsfw-warmup-skill/main/scripts/install.sh | bash
+
+# 2. 进入装好的目录 + 激活 venv（install.sh 会告诉你具体路径）
+cd ~/.openclaw/workspace/skills/x-nsfw-warmup   # 或 ~/.claude/skills/x-nsfw-warmup
+source .venv/bin/activate
+
+# 3. 跑 onboarding 向导
+python scripts/onboard.py
+```
+
+向导会：
+
+1. 自动连你的 AdsPower / BitBrowser Local API
+2. 列出你现有的 profile
+3. 让你确认要导入哪些
+4. 让你填每个 profile 对应的 X handle
+5. 把一切写进 warmup.db
+6. 告诉你下一步跑什么命令
+
+**大约 5 分钟**，之后 dry-run 就能跑。往下走再根据 [deploy/README.md](./deploy/README.md) 切 live。
+
+---
+
+---
+
 ## 它解决什么
 
 成人内容方向的 X 账号运营有两个工程难点：

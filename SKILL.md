@@ -89,7 +89,20 @@ metadata:
 
 ## 三、推荐执行流程
 
-### Step 1 · 准备账号池
+### 🚀 快速路径（已有账号 + 指纹浏览器的用户）
+
+如果你已经在 AdsPower / BitBrowser 里配好了 profile 并手动登录过账号，跳过 Step 1，直接：
+
+```bash
+bash scripts/install.sh        # 一键装（自动识别 AI 客户端位置）
+python scripts/onboard.py      # 交互式向导：连你的指纹浏览器 → 列 profile → 填 handle → 写 DB
+python scripts/check_prereqs.py   # 验证一切就绪
+python examples/05-full-warmup-loop.py --dry-run   # 演示完整 loop，无真实调用
+```
+
+这套路径**给 AI 助手用的时候特别友好** —— AI 只需要引导用户跑这几条命令，所有"体力活"都压缩到用户自己手动登录 AdsPower 这一步。
+
+### Step 1 · 准备账号池（从 0 开始的用户）
 - 见 [`workflows/01-account-setup.md`](./workflows/01-account-setup.md)
 - 关键：每号绑定 **独立指纹 + 独立代理 + 独立 cookie**，不要图省事用同一个浏览器多开 tab
 
