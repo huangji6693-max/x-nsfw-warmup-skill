@@ -174,6 +174,24 @@ The scheduler runs as a background asyncio task in the same process as the UI. W
 
 ---
 
+## ⚠️ "我电脑关机了 loop 还跑吗？"
+
+**不跑。** 但这是好事 —— 真人也睡觉，账号 24/7 不停反而是 bot 信号。
+
+完整解释 + 4 种 24/7 选项（caffeinate / Mac mini 专机 / VPS / launchd 自启动）见：
+
+👉 [**ALWAYS-ON.md**](./ALWAYS-ON.md)
+
+简短版：
+
+| 你的情况 | 推荐做法 |
+|---|---|
+| 5-20 号，正常用 Mac | 默认就行，关机就关机 |
+| 想夜里也跑（MacBook 插电源） | `bash scripts/launch_gui_keepawake.sh` |
+| 想完全 24/7 自动 | 见 [ALWAYS-ON.md §方案 C/D](./ALWAYS-ON.md) |
+
+---
+
 ## Going beyond GUI mode
 
 If you want the full feature set (post tweets, follow creators, content sourcing with NudeNet), use the CLI path instead:
