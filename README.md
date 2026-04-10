@@ -11,6 +11,29 @@
 
 ---
 
+## 🦞 GUI 模式（最简单，推荐给非技术朋友）
+
+如果你只想要**正常刷 X + 偶尔点赞**，并且想用**网页面板**改频率和号池，跳过下面的命令行流程，直接看：
+
+👉 [**gui/README.md**](./gui/README.md)
+
+```bash
+bash scripts/install.sh           # 一键装（同 v0.4）
+bash scripts/launch_gui.sh        # 启动 localhost:8080 控制面板
+```
+
+之后浏览器里所有事都能点：
+
+- **Dashboard 标签** · 看实时日志、点 ▶ Start / ■ Stop
+- **Accounts 标签** · 加号、删号、改备注
+- **Settings 标签** · 拖滑条改频率、改 like 概率、切 dry-run
+- **AdsPower 标签** · 一键测连接、批量导入 profile
+
+GUI 模式只跑两个动作 —— **scroll_engage**（刷 feed + 偶尔点赞）和 **idle**（挂机）。
+不发推、不关注、不取关，是最低风险的"养号常态"模式。
+
+---
+
 ## ⚡ 最短路径（已有账号 + 指纹浏览器的用户）
 
 如果你**已经有 X 账号**，并且**已经在 AdsPower / BitBrowser 里创建了 profile 并登录过**，从零到 dry-run 只要 3 条命令：

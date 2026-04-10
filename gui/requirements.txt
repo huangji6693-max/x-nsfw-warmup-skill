@@ -1,0 +1,15 @@
+# GUI mode extra dependencies (on top of root requirements.txt)
+#
+# Install:
+#     pip install -r gui/requirements.txt
+#
+# This is a superset — it includes everything in root requirements.txt PLUS
+# the NiceGUI stack for the visual panel.
+
+# --- from root requirements.txt ---
+playwright>=1.40.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# --- GUI-only ---
+nicegui>=1.4.0

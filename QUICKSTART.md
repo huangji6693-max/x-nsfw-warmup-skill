@@ -7,6 +7,59 @@
 
 ---
 
+## 🎁 最新：可视化控制面板（最省事）
+
+如果你**完全不想碰命令行**，跳过下面所有步骤，直接用网页面板：
+
+```bash
+# 第 1 步 装
+curl -fsSL https://raw.githubusercontent.com/huangji6693-max/x-nsfw-warmup-skill/main/scripts/install.sh | bash
+
+# 第 2 步 启动面板（按提示进入安装目录后跑这一条）
+bash scripts/launch_gui.sh
+```
+
+之后浏览器自动打开 `http://localhost:8080`，你看到的是这样的网页：
+
+```
+┌─────────────────────────────────────────────┐
+│  🦞 X Warmup Skill · Control Panel          │
+├─────────────────────────────────────────────┤
+│  [Dashboard]  [Accounts]  [Settings]        │
+│  [AdsPower]                                  │
+├─────────────────────────────────────────────┤
+│                                              │
+│   Total: 5    Active: 5    Cooldown: 0      │
+│                                              │
+│   Status: STOPPED      Mode: dry-run ✅      │
+│                                              │
+│   [▶ Start]  [■ Stop]                        │
+│                                              │
+│   Live log:                                  │
+│   ┌─────────────────────────────────────┐   │
+│   │ 2026-04-10 14:30  warmup_start ...  │   │
+│   │ 2026-04-10 14:31  scroll_engage ... │   │
+│   └─────────────────────────────────────┘   │
+└─────────────────────────────────────────────┘
+```
+
+**所有操作都是点鼠标**：
+- **AdsPower 标签** → 点"Test connection" → 自动列出你的 profile → 给每个填 X 用户名 → 点"Add to pool"
+- **Settings 标签** → 拖滑条改频率
+- **Dashboard 标签** → 点 ▶ Start 启动
+
+🎯 **你不需要敲一行命令、不需要写 SQL、不需要看任何文档。**
+
+⚠️ 第一次跑务必保持 **dry-run 开关 = 开**（默认就是开），看几个小时确认没问题再切 live。
+
+> 详细 GUI 文档：[gui/README.md](./gui/README.md)
+
+---
+
+## 👇 下面是命令行教程（如果你不用网页面板才看这里）
+
+---
+
 ## 😌 你不用怕，整个过程就 4 步
 
 **最简单的用法：把这份教程整个发给龙虾，告诉它「照着帮我执行」，让它全程带你。**
