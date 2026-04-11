@@ -1,9 +1,16 @@
 """
-gui/adspower.py · AdsPower Local API wrapper
+gui/adspower.py · Fingerprint browser Local API wrapper
 
-Unified entry point for starting / stopping profiles. Supports a dry-run
-mode where no real HTTP calls are made — for testing the GUI without a
-running AdsPower desktop client.
+Supports both AdsPower and BitBrowser via a unified interface.
+Detects which browser to use from the `browser_type` parameter.
+
+AdsPower API: http://local.adspower.net:50325
+  GET /api/v1/browser/start?user_id=X  → ws endpoint
+  GET /api/v1/browser/stop?user_id=X
+
+BitBrowser API: http://127.0.0.1:54345
+  POST /browser/open/local  {"id": "X"}  → ws endpoint
+  POST /browser/close       {"id": "X"}
 """
 
 from __future__ import annotations
@@ -19,11 +26,14 @@ except ImportError:
 
 
 # ============================================================================
-# HTTP client (sync, wrapped via asyncio.to_thread for async contexts)
+# Unified browser client
 # ============================================================================
-class AdsPowerClient:
-    def __init__(self, base_url: str, dry_run: bool = False):
+class BrowserClient:
+    """Unified client for AdsPower / BitBrowser / dry-run."""
+
+    def __init__(self, base_url: str, browser_type: str = "adspower", dry_run: bool = False):
         self.base_url = base_url.rstrip("/")
+        self.browser_type = browser_type.lower()  # "adspower" | "bitbrowser"
         self.dry_run = dry_run
 
     # ---- low-level ----
@@ -36,37 +46,91 @@ class AdsPowerClient:
         r.raise_for_status()
         data = r.json()
         if data.get("code") != 0:
-            raise RuntimeError(f"AdsPower error: {data}")
+            raise RuntimeError(f"API error: {data}")
         return data
 
-    # ---- high-level ----
+    def _post(self, path: str, json_body: dict) -> dict:
+        if self.dry_run:
+            return {"success": True, "data": {"ws": "ws://dry-run/fake"}}
+        if requests is None:
+            raise RuntimeError("requests not installed")
+        r = requests.post(f"{self.base_url}{path}", json=json_body, timeout=20)
+        r.raise_for_status()
+        return r.json()
+
+    # ---- high-level (auto-routes by browser_type) ----
+    def start(self, profile_id: str) -> dict:
+        """Start a browser profile. Returns dict with ws endpoint."""
+        if self.dry_run:
+            return {"ws": {"puppeteer": "ws://dry-run/fake"}}
+
+        if self.browser_type == "bitbrowser":
+            data = self._post("/browser/open/local", {"id": profile_id})
+            if not data.get("success"):
+                raise RuntimeError(f"BitBrowser open failed: {data}")
+            return data.get("data", {})
+        else:
+            # AdsPower
+            data = self._get("/api/v1/browser/start", {"user_id": profile_id, "open_tabs": 0})
+            return data.get("data", {})
+
+    def stop(self, profile_id: str) -> None:
+        """Stop a browser profile. Best-effort, won't raise."""
+        if self.dry_run:
+            return
+        try:
+            if self.browser_type == "bitbrowser":
+                self._post("/browser/close", {"id": profile_id})
+            else:
+                self._get("/api/v1/browser/stop", {"user_id": profile_id})
+        except Exception:
+            pass
+
+    def get_ws_endpoint(self, start_result: dict) -> str:
+        """Extract WebSocket endpoint from start() result."""
+        if self.browser_type == "bitbrowser":
+            # BitBrowser returns {"ws": "ws://127.0.0.1:XXXX/devtools/browser/..."}
+            ws = start_result.get("ws", "")
+            if ws:
+                return ws
+            # Fallback: some versions use nested structure
+            return start_result.get("http", "")
+        else:
+            # AdsPower returns {"ws": {"puppeteer": "ws://..."}}
+            ws = start_result.get("ws", {})
+            if isinstance(ws, dict):
+                return ws.get("puppeteer", "")
+            return str(ws)
+
     def list_profiles(self) -> list[dict[str, Any]]:
         if self.dry_run:
-            return [
-                {"user_id": f"dry_{i:03d}", "name": f"dry_profile_{i}"} for i in range(3)
-            ]
-        data = self._get("/api/v1/user/list", {"page": 1, "page_size": 200})
-        return data.get("data", {}).get("list", [])
+            return [{"user_id": f"dry_{i:03d}", "name": f"dry_profile_{i}"} for i in range(3)]
 
-    def start(self, user_id: str) -> dict:
-        data = self._get("/api/v1/browser/start", {"user_id": user_id, "open_tabs": 0})
-        return data.get("data", {})
-
-    def stop(self, user_id: str) -> None:
-        try:
-            self._get("/api/v1/browser/stop", {"user_id": user_id})
-        except Exception:
-            pass  # best-effort
+        if self.browser_type == "bitbrowser":
+            data = self._post("/browser/list", {"page": 0, "pageSize": 200})
+            raw = data.get("data", {}).get("list", [])
+            # Normalize to common format
+            return [{"user_id": str(p.get("id", "")), "name": p.get("name", "")} for p in raw]
+        else:
+            data = self._get("/api/v1/user/list", {"page": 1, "page_size": 200})
+            return data.get("data", {}).get("list", [])
 
     def ping(self) -> bool:
-        """Returns True if AdsPower API is reachable."""
         if self.dry_run:
             return True
         try:
-            self._get("/api/v1/user/list", {"page": 1, "page_size": 1})
-            return True
+            if self.browser_type == "bitbrowser":
+                data = self._post("/browser/list", {"page": 0, "pageSize": 1})
+                return data.get("success", False)
+            else:
+                self._get("/api/v1/user/list", {"page": 1, "page_size": 1})
+                return True
         except Exception:
             return False
+
+
+# Backward compat alias
+AdsPowerClient = BrowserClient
 
 
 # ============================================================================
@@ -90,9 +154,9 @@ async def browser_session(client: AdsPowerClient, profile_id: str):
         return
 
     info = await asyncio.to_thread(client.start, profile_id)
-    ws_endpoint = info.get("ws", {}).get("puppeteer")
+    ws_endpoint = client.get_ws_endpoint(info)
     if not ws_endpoint:
-        raise RuntimeError(f"AdsPower didn't return ws endpoint: {info}")
+        raise RuntimeError(f"Browser didn't return ws endpoint: {info}")
 
     try:
         from playwright.async_api import async_playwright

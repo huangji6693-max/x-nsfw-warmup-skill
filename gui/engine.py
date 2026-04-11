@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Any
 
 from . import db
-from .adspower import AdsPowerClient, browser_session
+from .adspower import BrowserClient, browser_session
 
 
 log = logging.getLogger("x-warmup.engine")
@@ -41,7 +41,9 @@ class EngineSettings:
         self.like_prob = float(settings.get("like_probability", "0.10"))
         self.max_concurrent = int(settings.get("max_concurrent", "1"))
         self.dry_run = settings.get("dry_run", "true").lower() == "true"
-        self.adspower_api = settings.get("adspower_api", "http://local.adspower.net:50325")
+        # Support both old "adspower_api" key and new "browser_api" key
+        self.adspower_api = settings.get("browser_api",
+                            settings.get("adspower_api", "http://127.0.0.1:54345"))
 
 
 def load_settings() -> EngineSettings:
@@ -128,9 +130,10 @@ def pick_action():
 # ============================================================================
 async def warmup_one(account: dict, settings: EngineSettings) -> None:
     handle = account["handle"]
-    db.log_event("warmup_start", f"@{handle} ({'dry-run' if settings.dry_run else 'live'})", handle)
+    browser_type = account.get("fingerprint_browser", "adspower")
+    db.log_event("warmup_start", f"@{handle} ({'dry-run' if settings.dry_run else 'live'}) [{browser_type}]", handle)
 
-    client = AdsPowerClient(settings.adspower_api, dry_run=settings.dry_run)
+    client = BrowserClient(settings.adspower_api, browser_type=browser_type, dry_run=settings.dry_run)
 
     try:
         async with browser_session(client, account["fingerprint_profile_id"]) as page:

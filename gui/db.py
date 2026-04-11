@@ -97,7 +97,8 @@ DEFAULT_SETTINGS = {
     "like_probability": "0.10",
     "max_concurrent": "1",
     "dry_run": "true",
-    "adspower_api": "http://local.adspower.net:50325",
+    "browser_api": "http://127.0.0.1:54345",
+    "browser_type": "bitbrowser",
     "running": "false",
 }
 

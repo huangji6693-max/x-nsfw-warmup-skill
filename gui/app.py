@@ -25,10 +25,10 @@ from pathlib import Path
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from gui import db, engine
-    from gui.adspower import AdsPowerClient
+    from gui.adspower import BrowserClient
 else:
     from . import db, engine
-    from .adspower import AdsPowerClient
+    from .adspower import BrowserClient
 
 try:
     from nicegui import ui, app as nicegui_app
@@ -295,18 +295,27 @@ def render_settings():
             ).props("label-always")
             concurrent.on_value_change(lambda e: db.set_setting("max_concurrent", str(e.value)))
 
-        # ---- adspower api ----
+        # ---- browser api ----
         with ui.card().classes("w-full"):
-            ui.label("AdsPower Local API").classes("text-lg font-bold")
-            api_input = ui.input(
-                label="URL",
-                value=settings.get("adspower_api", "http://local.adspower.net:50325"),
+            ui.label("Fingerprint Browser API").classes("text-lg font-bold")
+
+            browser_type = ui.select(
+                ["bitbrowser", "adspower"],
+                value=settings.get("browser_type", "bitbrowser"),
+                label="Browser type",
             ).classes("w-full")
 
-            def save_api():
-                db.set_setting("adspower_api", api_input.value.strip())
+            api_input = ui.input(
+                label="API URL",
+                value=settings.get("browser_api",
+                      settings.get("adspower_api", "http://127.0.0.1:54345")),
+            ).classes("w-full")
+
+            def save_browser_config():
+                db.set_setting("browser_type", browser_type.value)
+                db.set_setting("browser_api", api_input.value.strip())
                 ui.notify("saved", color="positive")
-            ui.button("Save", color="primary").on_click(save_api)
+            ui.button("Save", color="primary").on_click(save_browser_config)
 
 
 # ============================================================================
@@ -314,14 +323,15 @@ def render_settings():
 # ============================================================================
 def render_adspower():
     with ui.column().classes("w-full gap-4"):
-        ui.label("🦞 AdsPower").classes("text-2xl font-bold")
+        ui.label("🔗 Fingerprint Browser").classes("text-2xl font-bold")
 
         status_label = ui.label("Not tested yet").classes("text-lg")
         profiles_area = ui.column().classes("w-full gap-2 mt-2")
 
         def do_test():
             settings = engine.load_settings()
-            client = AdsPowerClient(settings.adspower_api, dry_run=False)
+            browser_type = db.get_setting("browser_type", "bitbrowser")
+            client = BrowserClient(settings.adspower_api, browser_type=browser_type, dry_run=False)
             try:
                 ok = client.ping()
                 if not ok:
