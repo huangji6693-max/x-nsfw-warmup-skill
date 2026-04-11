@@ -65,10 +65,15 @@ class BrowserClient:
             return {"ws": {"puppeteer": "ws://dry-run/fake"}}
 
         if self.browser_type == "bitbrowser":
-            data = self._post("/browser/open/local", {"id": profile_id})
-            if not data.get("success"):
-                raise RuntimeError(f"BitBrowser open failed: {data}")
-            return data.get("data", {})
+            # Try /browser/open first (most versions), fall back to /browser/open/local
+            for path in ["/browser/open", "/browser/open/local"]:
+                try:
+                    data = self._post(path, {"id": profile_id, "args": []})
+                    if data.get("success") or data.get("data"):
+                        return data.get("data", {})
+                except Exception:
+                    continue
+            raise RuntimeError(f"BitBrowser open failed for profile {profile_id}")
         else:
             # AdsPower
             data = self._get("/api/v1/browser/start", {"user_id": profile_id, "open_tabs": 0})
