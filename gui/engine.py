@@ -71,24 +71,70 @@ def _get_nudenet():
         return None
 
 
-async def is_nsfw_tweet(page, tweet_locator, threshold: float = 0.4) -> bool:
-    """Screenshot a tweet element and check if it contains adult content via NudeNet.
+# ============================================================================
+# NSFW keywords in tweet text (covers pure-text + video tweets)
+# ============================================================================
+NSFW_KEYWORDS = {
+    "#nsfw", "#lewd", "#porn", "#hentai", "#r18", "#xxx", "#adult",
+    "#onlyfans", "#fansly", "#nude", "#naked", "#sexy", "#erotic",
+    "#boobs", "#ass", "#dick", "#pussy", "#cum", "#milf", "#bbw",
+    "#feet", "#footfetish", "#bdsm", "#kink", "#lingerie", "#bikini",
+    "#cosplay", "#ahegao", "#waifu", "#ecchi",
+    "onlyfans.com", "fansly.com", "linktree", "linktr.ee",
+    "18+", "🔞", "🍑", "🍆", "💦",
+}
+
+
+def _text_has_nsfw_signals(text: str) -> bool:
+    """Quick keyword check on tweet text. Fast, no ML needed."""
+    text_lower = text.lower()
+    return any(kw in text_lower for kw in NSFW_KEYWORDS)
+
+
+async def is_nsfw_tweet(page, tweet_locator, threshold: float = 0.35) -> bool:
+    """Multi-signal NSFW detection for a single tweet.
+
+    Signal 1: Text keywords (#nsfw, #lewd, onlyfans.com, etc.)
+    Signal 2: NudeNet on tweet screenshot (captures image + video thumbnail)
 
     Returns True if adult content detected (should like), False otherwise (skip).
-    If NudeNet is not available, returns True (fallback to like everything).
+    If NudeNet is not available, falls back to text-only detection.
     """
+
+    # --- Signal 1: Text keywords (fast, always works) ---
+    try:
+        tweet_text = await tweet_locator.inner_text()
+        if _text_has_nsfw_signals(tweet_text):
+            return True
+    except Exception:
+        tweet_text = ""
+
+    # --- Signal 2: NudeNet on screenshot (covers images + video thumbnails) ---
     detector = _get_nudenet()
     if detector is None:
-        return True  # no filter = like everything (backward compat)
+        # No NudeNet, no text match → skip (conservative without ML)
+        return False
 
     try:
-        # Screenshot just this tweet to a temp file
+        # Wait for media to load (video thumbnails / images need a moment)
+        await asyncio.sleep(random.uniform(0.5, 1.5))
+
+        # Try to wait for any img/video inside the tweet to finish loading
+        try:
+            media = tweet_locator.locator('img[src*="pbs.twimg.com"], video')
+            if await media.count() > 0:
+                await media.first.wait_for(state="visible", timeout=3000)
+                await asyncio.sleep(0.5)  # extra buffer for render
+        except Exception:
+            pass  # no media or timeout, proceed with screenshot anyway
+
+        # Screenshot the tweet element
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             tmp_path = f.name
 
         await tweet_locator.screenshot(path=tmp_path)
 
-        # Run NudeNet in thread pool (it's CPU-bound)
+        # Run NudeNet in thread pool
         results = await asyncio.to_thread(detector.detect, tmp_path)
 
         # Clean up
@@ -97,17 +143,18 @@ async def is_nsfw_tweet(page, tweet_locator, threshold: float = 0.4) -> bool:
         except Exception:
             pass
 
-        # Check if any NSFW label exceeds threshold
+        # Check results
         for r in results:
             if r["class"] in NSFW_LABELS and r["score"] >= threshold:
                 return True
-            if r["class"] in SUGGESTIVE_LABELS and r["score"] >= 0.6:
+            if r["class"] in SUGGESTIVE_LABELS and r["score"] >= 0.5:
                 return True
 
         return False
     except Exception as e:
         log.debug(f"NSFW check failed: {e}")
-        return True  # on error, default to like (don't break the loop)
+        # On error with text match, still return text result
+        return _text_has_nsfw_signals(tweet_text) if tweet_text else False
 
 
 log = logging.getLogger("x-warmup.engine")
