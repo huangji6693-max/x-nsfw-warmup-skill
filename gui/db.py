@@ -90,11 +90,11 @@ def init_schema() -> None:
 # Settings (key-value)
 # ============================================================================
 DEFAULT_SETTINGS = {
-    "interval_min_hours": "2.0",
-    "interval_max_hours": "6.0",
-    "session_min_seconds": "60",
-    "session_max_seconds": "180",
-    "like_probability": "0.10",
+    "interval_min_hours": "4.0",
+    "interval_max_hours": "8.0",
+    "session_min_seconds": "120",
+    "session_max_seconds": "300",
+    "like_probability": "0.03",
     "max_concurrent": "1",
     "dry_run": "true",
     "browser_api": "http://127.0.0.1:54345",

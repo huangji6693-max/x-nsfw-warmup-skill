@@ -1,14 +1,14 @@
 """
 gui/engine.py · Background scheduler + simplified actions
 
-Simplified action set (vs examples/05-full-warmup-loop.py):
+Simplified action set:
   - scroll_engage   scroll the home feed for a random duration,
-                    occasionally like a visible tweet
-  - idle            do nothing (true idle, models human "just opened and closed" behavior)
+                    use NudeNet to identify adult content before liking
+  - idle            do nothing (true idle, models human noise)
 
-No posting, no following, no content sourcing. This is the "low-risk"
-mode for users who just want their accounts to look alive without
-making any outbound commitments.
+NudeNet integration: when a tweet has media, screenshot the tweet element,
+run NudeNet to detect if it's adult content. Only like if NSFW score exceeds
+threshold. This builds the account's interest profile toward adult content.
 """
 
 from __future__ import annotations
@@ -16,12 +16,98 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import tempfile
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from . import db
 from .adspower import BrowserClient, browser_session
+
+
+# ============================================================================
+# NudeNet lazy loader (only loads model once, on first use)
+# ============================================================================
+_nudenet_detector = None
+_nudenet_available = None
+
+NSFW_LABELS = {
+    "FEMALE_BREAST_EXPOSED",
+    "FEMALE_GENITALIA_EXPOSED",
+    "FEMALE_GENITALIA_COVERED",
+    "MALE_GENITALIA_EXPOSED",
+    "BUTTOCKS_EXPOSED",
+    "ANUS_EXPOSED",
+}
+
+SUGGESTIVE_LABELS = {
+    "FEMALE_BREAST_COVERED",
+    "BUTTOCKS_COVERED",
+    "BELLY_EXPOSED",
+}
+
+
+def _get_nudenet():
+    """Lazy-load NudeNet detector. Returns None if not installed."""
+    global _nudenet_detector, _nudenet_available
+    if _nudenet_available is False:
+        return None
+    if _nudenet_detector is not None:
+        return _nudenet_detector
+    try:
+        from nudenet import NudeDetector
+        _nudenet_detector = NudeDetector()
+        _nudenet_available = True
+        log.info("NudeNet model loaded")
+        return _nudenet_detector
+    except ImportError:
+        log.warning("nudenet not installed — liking without NSFW filter. pip install nudenet to enable.")
+        _nudenet_available = False
+        return None
+    except Exception as e:
+        log.warning(f"NudeNet init failed: {e}")
+        _nudenet_available = False
+        return None
+
+
+async def is_nsfw_tweet(page, tweet_locator, threshold: float = 0.4) -> bool:
+    """Screenshot a tweet element and check if it contains adult content via NudeNet.
+
+    Returns True if adult content detected (should like), False otherwise (skip).
+    If NudeNet is not available, returns True (fallback to like everything).
+    """
+    detector = _get_nudenet()
+    if detector is None:
+        return True  # no filter = like everything (backward compat)
+
+    try:
+        # Screenshot just this tweet to a temp file
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            tmp_path = f.name
+
+        await tweet_locator.screenshot(path=tmp_path)
+
+        # Run NudeNet in thread pool (it's CPU-bound)
+        results = await asyncio.to_thread(detector.detect, tmp_path)
+
+        # Clean up
+        try:
+            Path(tmp_path).unlink()
+        except Exception:
+            pass
+
+        # Check if any NSFW label exceeds threshold
+        for r in results:
+            if r["class"] in NSFW_LABELS and r["score"] >= threshold:
+                return True
+            if r["class"] in SUGGESTIVE_LABELS and r["score"] >= 0.6:
+                return True
+
+        return False
+    except Exception as e:
+        log.debug(f"NSFW check failed: {e}")
+        return True  # on error, default to like (don't break the loop)
 
 
 log = logging.getLogger("x-warmup.engine")
@@ -78,15 +164,20 @@ async def action_scroll_engage(page, account: dict, settings: EngineSettings) ->
 
     scrolls = 0
     likes = 0
+    nsfw_skips = 0
     while time.time() < end:
         # scroll down by a humanized random amount
         await page.mouse.wheel(0, random.randint(300, 800))
         scrolls += 1
 
-        # humanized pause
-        await asyncio.sleep(random.uniform(1.5, 5.0))
+        # humanized pause — real humans don't scroll every 1.5s
+        await asyncio.sleep(random.uniform(3.0, 8.0))
 
-        # small chance to like
+        # occasionally pause longer (simulate reading a tweet)
+        if random.random() < 0.15:
+            await asyncio.sleep(random.uniform(5.0, 15.0))
+
+        # chance to evaluate a tweet for liking (3% default)
         if random.random() < settings.like_prob:
             try:
                 tweets = await page.locator('article[data-testid="tweet"]').all()
@@ -94,14 +185,21 @@ async def action_scroll_engage(page, account: dict, settings: EngineSettings) ->
                     t = random.choice(tweets)
                     like = t.locator('[data-testid="like"]').first
                     if await like.is_visible():
-                        await like.click()
-                        likes += 1
-                        await asyncio.sleep(random.uniform(0.8, 2.5))
-                        db.log_event("like", f"@{account['handle']} liked 1 tweet", account["handle"])
+                        # NudeNet check: only like if adult content detected
+                        is_nsfw = await is_nsfw_tweet(page, t)
+                        if is_nsfw:
+                            await like.click()
+                            likes += 1
+                            await asyncio.sleep(random.uniform(2.0, 6.0))
+                            db.log_event("like", f"@{account['handle']} liked NSFW tweet", account["handle"])
+                        else:
+                            nsfw_skips += 1
+                            db.log_event("skip", f"@{account['handle']} skipped non-NSFW tweet", account["handle"])
+                            await asyncio.sleep(random.uniform(1.0, 3.0))
             except Exception as e:
                 log.debug(f"like attempt failed: {e}")
 
-    return {"action": "scroll_engage", "scrolls": scrolls, "likes": likes, "duration_s": round(duration, 1)}
+    return {"action": "scroll_engage", "scrolls": scrolls, "likes": likes, "skipped_non_nsfw": nsfw_skips, "duration_s": round(duration, 1)}
 
 
 async def action_idle(page, account: dict, settings: EngineSettings) -> dict:
@@ -215,8 +313,8 @@ class Scheduler:
                         log.exception("warmup_one crashed")
                         db.log_event("error", f"warmup_one crash: {e}")
 
-                # Global cadence: sleep between accounts to avoid rhythmic pattern
-                await asyncio.sleep(random.uniform(30, 120))
+                # Global cadence: longer sleep between accounts to look human
+                await asyncio.sleep(random.uniform(60, 300))
 
             db.log_event("scheduler_stop", "loop exited normally")
         except asyncio.CancelledError:
