@@ -238,10 +238,10 @@ async def action_scroll_engage(page, account: dict, settings: EngineSettings) ->
                             await like.click()
                             likes += 1
                             await asyncio.sleep(random.uniform(2.0, 6.0))
-                            db.log_event("like", f"@{account['handle']} liked NSFW tweet", account["handle"])
+                            db.log_event("点赞", f"@{account['handle']} 识别到成人内容，已点赞", account["handle"])
                         else:
                             nsfw_skips += 1
-                            db.log_event("skip", f"@{account['handle']} skipped non-NSFW tweet", account["handle"])
+                            db.log_event("跳过", f"@{account['handle']} 非成人内容，已跳过", account["handle"])
                             await asyncio.sleep(random.uniform(1.0, 3.0))
             except Exception as e:
                 log.debug(f"like attempt failed: {e}")
@@ -276,7 +276,7 @@ def pick_action():
 async def warmup_one(account: dict, settings: EngineSettings) -> None:
     handle = account["handle"]
     browser_type = account.get("fingerprint_browser", "adspower")
-    db.log_event("warmup_start", f"@{handle} ({'dry-run' if settings.dry_run else 'live'}) [{browser_type}]", handle)
+    db.log_event("开始养号", f"@{handle} ({'模拟运行' if settings.dry_run else '真实运行'}) [{browser_type}]", handle)
 
     client = BrowserClient(settings.adspower_api, browser_type=browser_type, dry_run=settings.dry_run)
 
@@ -284,7 +284,8 @@ async def warmup_one(account: dict, settings: EngineSettings) -> None:
         async with browser_session(client, account["fingerprint_profile_id"]) as page:
             status = await health_check(page)
             if status != "ok":
-                db.log_event(f"warmup_{status}", f"@{handle} → {status}", handle)
+                status_zh = {"challenge": "验证挑战", "shadow_ban": "影子封禁", "logged_out": "已掉线"}.get(status, status)
+                db.log_event("异常", f"@{handle} → {status_zh}", handle)
                 if status == "challenge":
                     db.update_account_status(handle, "cooldown", cooldown_hours=24)
                 elif status == "shadow_ban":
@@ -296,10 +297,10 @@ async def warmup_one(account: dict, settings: EngineSettings) -> None:
             action = pick_action()
             result = await action(page, account, settings)
             db.mark_warmup_done(handle)
-            db.log_event("warmup_done", f"@{handle} · {result}", handle)
+            db.log_event("完成养号", f"@{handle} · 滚动{result.get('scrolls',0)}次 · 点赞{result.get('likes',0)}次 · 跳过{result.get('skipped_non_nsfw',0)}条 · {result.get('duration_s',0)}秒", handle)
     except Exception as e:
-        log.exception("warmup failed")
-        db.log_event("warmup_error", f"@{handle} · {type(e).__name__}: {e}", handle)
+        log.exception("养号出错")
+        db.log_event("出错", f"@{handle} · {type(e).__name__}: {e}", handle)
 
 
 # ============================================================================
@@ -321,12 +322,12 @@ class Scheduler:
         if self.is_running():
             return
         db.set_setting("running", "true")
-        db.log_event("scheduler_start", "background loop started")
+        db.log_event("调度器", "后台循环已启动")
         self._task = asyncio.create_task(self._loop())
 
     async def stop(self) -> None:
         db.set_setting("running", "false")
-        db.log_event("scheduler_stop", "background loop stopped")
+        db.log_event("调度器", "后台循环已停止")
         if self._task:
             self._task.cancel()
             try:
@@ -357,19 +358,19 @@ class Scheduler:
                     try:
                         await warmup_one(account, settings)
                     except Exception as e:
-                        log.exception("warmup_one crashed")
-                        db.log_event("error", f"warmup_one crash: {e}")
+                        log.exception("单号养号崩溃")
+                        db.log_event("出错", f"单号崩溃: {e}")
 
                 # Global cadence: longer sleep between accounts to look human
                 await asyncio.sleep(random.uniform(60, 300))
 
-            db.log_event("scheduler_stop", "loop exited normally")
+            db.log_event("调度器", "循环正常结束")
         except asyncio.CancelledError:
-            db.log_event("scheduler_stop", "loop cancelled")
+            db.log_event("调度器", "循环已取消")
             raise
         except Exception as e:
-            log.exception("scheduler crashed")
-            db.log_event("scheduler_error", f"{type(e).__name__}: {e}")
+            log.exception("调度器崩溃")
+            db.log_event("调度器错误", f"{type(e).__name__}: {e}")
 
 
 # Module-level singleton
