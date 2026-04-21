@@ -16,6 +16,41 @@
 
 ---
 
+## 🔐 密钥管理（先读这段再部署）
+
+`.env` 是整套方案最敏感的文件。**部署前必做**：
+
+```bash
+# 1. 仅自己可读
+chmod 600 .env
+chown "$USER":"$USER" .env
+
+# 2. 核实 .env 不会进 git / docker image
+git status --ignored | grep -q '\.env' || echo "⚠️ .env 没被忽略，检查 .gitignore"
+# Dockerfile 已改为 env_file 运行时挂载，不会烘进镜像
+
+# 3. 一旦怀疑泄露，立刻轮换
+#    - twscrape 账密 → 在 X 后台重置密码
+#    - 代理凭据    → 联系代理商换 user/pass
+#    - TG token    → @BotFather → /revoke → 生成新 token
+```
+
+进阶方案（按需选用）：
+
+| 场景 | 建议 |
+|---|---|
+| 单台 VPS 简单跑 | `chmod 600 .env` 即可 |
+| 多台机器 / 团队 | [SOPS](https://github.com/getsops/sops) + age/PGP 加密 `.env.age`，部署时解密 |
+| Docker Swarm | `docker secret` + compose `secrets:` 段 |
+| K8s | Sealed Secrets / External Secrets Operator |
+| 云厂商 | AWS Secrets Manager / GCP Secret Manager / HashiCorp Vault |
+| macOS 本地 | Keychain: `security add-generic-password -s x-warmup -a proxy_pass -w <pass>` |
+| Linux 本地 | `pass` / `systemd-creds encrypt` |
+
+最差下限：**绝对不要**把 `.env` 拷到共享网盘、截图发给朋友、粘进聊天工具。
+
+---
+
 ## 三种部署模式（任选其一）
 
 | 模式 | 适合 | 复杂度 |

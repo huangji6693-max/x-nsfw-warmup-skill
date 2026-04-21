@@ -1,5 +1,6 @@
 ---
 name: x-nsfw-warmup
+version: 0.6.0
 description: Use when user wants to build, debug, or scale an X (Twitter) account farm focused on adult / NSFW content — covers fingerprint browser orchestration (AdsPower / BitBrowser / patchright), content sourcing (twscrape / gallery-dl / coomer / kemono / OF-Scraper), NSFW classification with 18 fine-grained labels (NudeNet), and humanized warmup loops (CryptoBusher framework). Pulls together 30+ vetted open-source repos into a single buildable stack.
 homepage: https://github.com/huangji6693-max/x-nsfw-warmup-skill
 license: MIT

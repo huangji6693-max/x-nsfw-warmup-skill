@@ -12,10 +12,15 @@
 如果你**完全不想碰命令行**，跳过下面所有步骤，直接用网页面板：
 
 ```bash
-# 第 1 步 装
-curl -fsSL https://raw.githubusercontent.com/huangji6693-max/x-nsfw-warmup-skill/main/scripts/install.sh | bash
+# 第 1 步 克隆（不要用 curl|bash，先 clone 再本地跑）
+git clone https://github.com/huangji6693-max/x-nsfw-warmup-skill.git \
+    ~/.openclaw/workspace/skills/x-nsfw-warmup
 
-# 第 2 步 启动面板（按提示进入安装目录后跑这一条）
+# 第 2 步 进目录 + 本地装
+cd ~/.openclaw/workspace/skills/x-nsfw-warmup
+bash scripts/install.sh
+
+# 第 3 步 启动面板
 bash scripts/launch_gui.sh
 ```
 
@@ -102,13 +107,19 @@ bash scripts/launch_gui.sh
 
 ---
 
-### 第 2 步 · 复制下面这一整行，粘贴进终端，按回车
+### 第 2 步 · 复制下面这三行，一行一行粘贴进终端，每行按回车
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/huangji6693-max/x-nsfw-warmup-skill/main/scripts/install.sh | bash
+git clone https://github.com/huangji6693-max/x-nsfw-warmup-skill.git ~/.openclaw/workspace/skills/x-nsfw-warmup
+cd ~/.openclaw/workspace/skills/x-nsfw-warmup
+bash scripts/install.sh
 ```
 
+> 🔒 **为什么不用 `curl … | bash`？** 那种"一键远程执行"方式让你看不到脚本内容，一旦仓库被劫持会直接在你电脑上跑任意代码。先 `git clone` 下来，能 `less scripts/install.sh` 审一眼再跑，安全得多。
+
 **然后等 3~5 分钟**。终端会刷一堆英文和进度条，别担心，这是在自动安装。
+
+> 💡 **首次运行会额外下载 NudeNet 模型（约 80MB）**：第一次启动面板或第一次触发 NSFW 识别时，后台会自动从 `huggingface.co` 拉 ONNX 模型文件（`320n.onnx`），缓存在 `~/.NudeNet/` 下。国内网络可能要挂代理，或等一会多试几次。**只下这一次**，之后不再下载。
 
 ✅ **成功的样子**：最后看到类似这样的几行：
 
