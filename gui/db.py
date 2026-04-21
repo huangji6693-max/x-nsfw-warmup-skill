@@ -47,10 +47,11 @@ def _conn() -> sqlite3.Connection:
 # Schema
 # ============================================================================
 SCHEMA_SQL = """
+-- 注意：本项目仅使用指纹浏览器 cookies 认证，故 accounts 表不存任何密码字段。
+-- 历史数据库若含 password 列，由 _migrate_schema() 自动清零并废弃。
 CREATE TABLE IF NOT EXISTS accounts (
     handle TEXT PRIMARY KEY,
     email TEXT,
-    password TEXT,
     cookies_path TEXT,
     proxy_url TEXT,
     fingerprint_profile_id TEXT NOT NULL,
@@ -84,6 +85,29 @@ CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status);
 def init_schema() -> None:
     c = _conn()
     c.executescript(SCHEMA_SQL)
+    _migrate_drop_password()
+
+
+def _migrate_drop_password() -> None:
+    """老库升级：若 accounts 表仍带 password 列，清空其内容并移除该列。
+
+    - 清空优先：老用户若已写入明文密码，先 UPDATE 置空，尽量缩短暴露窗口。
+    - DROP COLUMN 需要 SQLite 3.35+（2021-03 后）。失败则保留列但保持空值，
+      下一次迁移再试。
+    """
+    c = _conn()
+    cols = {row["name"] for row in c.execute("PRAGMA table_info(accounts)").fetchall()}
+    if "password" not in cols:
+        return
+    try:
+        c.execute("UPDATE accounts SET password = NULL")
+    except sqlite3.Error:
+        pass
+    try:
+        c.execute("ALTER TABLE accounts DROP COLUMN password")
+    except sqlite3.Error:
+        # 老 SQLite 不支持 DROP COLUMN — 保持 NULL 即可，不暴露明文
+        pass
 
 
 # ============================================================================

@@ -29,10 +29,10 @@ from pathlib import Path
 
 
 SCHEMA_SQL = """
+-- 不存密码：仅用指纹浏览器 cookies 做登录态
 CREATE TABLE IF NOT EXISTS accounts (
     handle TEXT PRIMARY KEY,
     email TEXT,
-    password TEXT,
     cookies_path TEXT,
     proxy_url TEXT,
     fingerprint_profile_id TEXT NOT NULL,

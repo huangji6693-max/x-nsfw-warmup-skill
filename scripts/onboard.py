@@ -269,10 +269,10 @@ def step_write_db(db_path: Path, accounts: list[FingerprintProfile]) -> int:
 
     conn = sqlite3.connect(db_path)
     conn.executescript("""
+        -- 不存密码：仅用指纹浏览器 cookies 做登录态
         CREATE TABLE IF NOT EXISTS accounts (
             handle TEXT PRIMARY KEY,
             email TEXT,
-            password TEXT,
             cookies_path TEXT,
             proxy_url TEXT,
             fingerprint_profile_id TEXT NOT NULL,

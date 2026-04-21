@@ -1,19 +1,18 @@
+# 依赖版本全部锁死 —— 防止上游被投毒/行为漂移
+# 升级前请人工跑 pip-audit 并核对 changelog
+#
+# 生成于 2026-04-21（基于当前 PyPI 稳定版）
+# 更新方法：pip install -U <pkg> && pip freeze | grep <pkg>
+
 # Core
-twscrape>=0.13.0          # X / Twitter scraper with auth
-nudenet>=3.0.8            # NSFW classification (18 labels)
-gallery-dl>=1.27.0        # Universal media downloader (300+ sites)
+twscrape==0.17.0          # X / Twitter scraper with auth
+nudenet==3.4.2            # NSFW classification (18 labels)
+gallery-dl==1.29.7        # Universal media downloader (300+ sites)
 
 # Browser automation
-playwright>=1.40.0
-patchright>=1.40.0        # undetected playwright (drop-in)
-requests>=2.31.0
-
-# Optional - depending on which path you take
-# AdsPower has no python sdk, just use requests above
-# crocofactory-adspower>=1.0.0   # alternate AdsPower SDK
-
-# Optional - text moderation (companion to NudeNet)
-# detoxify>=0.5.2
+playwright==1.49.1
+patchright==1.49.1        # undetected playwright (drop-in)
+requests==2.32.3
 
 # Storage / utils
-python-dotenv>=1.0.0
+python-dotenv==1.0.1

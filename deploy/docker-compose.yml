@@ -70,24 +70,11 @@ services:
       - "host.docker.internal:host-gateway"
 
   # ---------------------------------------------------------------------------
-  # Watchtower —— 镜像自动更新（可选）
-  # 不想自动更新就把这段删掉
+  # 注：已移除 Watchtower 自动更新服务
+  # 原因：挂载 /var/run/docker.sock 等同把宿主机 root 权限交给容器，
+  #       一旦 watchtower 或其依赖被投毒，整台机器即可被接管。
+  # 如需更新镜像：docker compose pull && docker compose up -d
   # ---------------------------------------------------------------------------
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: x-warmup-watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      WATCHTOWER_CLEANUP: "true"
-      WATCHTOWER_POLL_INTERVAL: "86400"  # 24h 一次
-      WATCHTOWER_LABEL_ENABLE: "true"
-      WATCHTOWER_INCLUDE_RESTARTING: "true"
-    networks:
-      - warmup-net
-    labels:
-      com.centurylinklabs.watchtower.enable: "true"
 
 networks:
   warmup-net:

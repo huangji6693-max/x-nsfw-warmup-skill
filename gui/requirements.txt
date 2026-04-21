@@ -1,15 +1,14 @@
-# GUI mode extra dependencies (on top of root requirements.txt)
+# GUI 模式依赖（在根 requirements.txt 之上增量）
 #
-# Install:
+# 安装:
 #     pip install -r gui/requirements.txt
 #
-# This is a superset — it includes everything in root requirements.txt PLUS
-# the NiceGUI stack for the visual panel.
+# 所有版本已锁死 —— 防止上游被投毒/行为漂移
 
-# --- from root requirements.txt ---
-playwright>=1.40.0
-requests>=2.31.0
-python-dotenv>=1.0.0
+# --- 从根 requirements.txt 同步 ---
+playwright==1.49.1
+requests==2.32.3
+python-dotenv==1.0.1
 
 # --- GUI-only ---
-nicegui>=1.4.0
+nicegui==2.7.0

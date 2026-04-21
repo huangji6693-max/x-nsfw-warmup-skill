@@ -20,20 +20,60 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
----
+================================================================================
+ADDITIONAL NOTICE — USE AT YOUR OWN RISK
+================================================================================
 
-ADDITIONAL NOTICE
+## 1. 平台服务条款（Terms of Service）
 
-This project documents and references third-party open-source tools whose
-behavior may violate Twitter / X Terms of Service. The author makes no
-warranty regarding compliance with any platform's ToS or local laws.
+本项目演示的自动化浏览行为**明确违反** X / Twitter 当前 ToS
+（https://twitter.com/en/tos）中关于"automated use"与"bulk / unsolicited
+interactions"的条款，可能触发的后果包括但不限于：
 
-Adult content engagement is legal in many jurisdictions but may be restricted
-or prohibited in others. Users are solely responsible for:
-- Verifying legality in their jurisdiction
-- Complying with platform Terms of Service
-- Ensuring all content involves consenting adults of legal age
-- Not engaging in harassment, doxxing, deepfakes, or distribution of
-  non-consensual material
+  - 账号限流（shadow ban）
+  - 账号永久封禁
+  - 封禁关联支付 / 设备 / IP 资产
+  - 法律追索（特别是商用或规模化使用）
 
-The author disclaims all liability for misuse.
+项目作者不鼓励、不建议在生产账号上运行本项目。将其用于任何商业用途，
+**您必须自行阅读最新 ToS 并评估风险**，无论是否借助本仓库实现。
+
+## 2. 成人内容合规
+
+成人内容的访问 / 存储 / 转发在不同司法辖区差异巨大：
+  - 美国：联邦合法，各州限制不一（年龄验证法等）
+  - 中国大陆：**任何形式的传播均违法**，使用者自负刑事 / 行政责任
+  - 欧盟：受 GDPR + DSA 规制，需年龄门槛 + 内容标记
+  - 中东 / 部分东南亚：全面禁止
+
+使用者有**不可推卸的义务**确认：
+  - [ ] 当前所在地合法性
+  - [ ] 所有内容涉及**法定成年且知情同意**的参与者
+  - [ ] 未涉及未成年人、非自愿、深度伪造（deepfake）、报复性曝光
+
+## 3. 安全 / 数据
+
+  - 本项目不内置任何密钥加密机制；数据库 / cookies 文件 / 代理凭据
+    均明文存储。请在可信设备 + 磁盘加密 + 最小权限目录下运行。
+  - 运行于 Docker 时，**不要**挂载宿主机 `/var/run/docker.sock` 给任何
+    本仓库外的镜像。已从 docker-compose.yml 中移除 Watchtower 以消除
+    容器逃逸风险。
+  - 使用者应定期更新依赖并复核 `pip-audit` / `safety check` 报告，
+    避免上游供应链被投毒。
+
+## 4. 禁止用途（Zero Tolerance）
+
+严禁用于：
+  - 骚扰、挂人（doxxing）、人肉搜索
+  - 针对真实人物的深度伪造
+  - 分发 / 上传未成年人相关内容
+  - 大规模虚假账号操纵舆论、选举干预
+  - 诈骗引流 / 钓鱼 / 恶意软件传播
+
+一经发现，项目作者保留在公共 issue 中公示违规 GitHub handle 的权利。
+
+## 5. 您使用即视为
+
+  - 已完整阅读上述 1-4 条
+  - 放弃对项目作者的任何索赔权利
+  - 自行承担民事 / 刑事 / 行政 / 平台封号全部后果
